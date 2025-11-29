@@ -33,15 +33,17 @@ runs:
     - name: Configure registry authentication
       shell: bash
       working-directory: ${{ inputs.path }}
+      # env:
+        # NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         export BUN_INSTALL="$HOME/.bun"
         export PATH="$BUN_INSTALL/bin:$PATH"
 
         # Extract registry host from URL
-        REGISTRY_HOST=$(echo "${{ inputs.registry_url }}" | sed -e 's|^https\?://||' -e 's|/.*||')
+        # REGISTRY_HOST=$(echo "${{ inputs.registry_url }}" | sed -e 's|^https\?://||' -e 's|/.*||')
 
-        # Configure npmrc for authentication
-        echo "//${REGISTRY_HOST}/:_authToken=${{ inputs.token }}" >> ~/.npmrc
+        # # Configure npmrc for authentication
+        # echo "//${REGISTRY_HOST}/:_authToken=${{ inputs.token }}" >> ~/.npmrc
 
         # Set registry in package.json if using GitHub Packages
         if [[ "${{ inputs.registry_url }}" == *"pkg.github.com"* ]]; then
@@ -56,6 +58,8 @@ runs:
     - name: Publish package
       shell: bash
       working-directory: ${{ inputs.path }}
+      env:
+        GITHUB_TOKEN: ${{ inputs.token }}
       run: |
         export BUN_INSTALL="$HOME/.bun"
         export PATH="$BUN_INSTALL/bin:$PATH"
