@@ -1,0 +1,36 @@
+name: 'Bun Library Build'
+description: 'Build a bun/npm package using bun package manager'
+author: 'tardy-actions'
+
+inputs:
+  path:
+    description: 'Path to the package to build'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Bun
+      shell: bash
+      run: |
+        if ! command -v bun &> /dev/null; then
+          curl -fsSL https://bun.sh/install | bash
+          export BUN_INSTALL="$HOME/.bun"
+          export PATH="$BUN_INSTALL/bin:$PATH"
+        fi
+
+    - name: Install dependencies
+      shell: bash
+      working-directory: ${{ inputs.path }}
+      run: |
+        export BUN_INSTALL="$HOME/.bun"
+        export PATH="$BUN_INSTALL/bin:$PATH"
+        bun install
+
+    - name: Build package
+      shell: bash
+      working-directory: ${{ inputs.path }}
+      run: |
+        export BUN_INSTALL="$HOME/.bun"
+        export PATH="$BUN_INSTALL/bin:$PATH"
+        bun run build
