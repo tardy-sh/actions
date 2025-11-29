@@ -1,0 +1,76 @@
+name: Validate Actions
+
+on:
+  push:
+    branches: ['**']
+    paths:
+      - '**/action.yml'
+      - '.github/workflows/validate-actions.yml'
+  pull_request:
+    paths:
+      - '**/action.yml'
+      - '.github/workflows/validate-actions.yml'
+
+jobs:
+  validate:
+    name: Validate Action Syntax
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Find all action.yml files
+        id: find-actions
+        run: |
+          echo "Found action files:"
+          find . -name "action.yml" -type f | tee action_files.txt
+
+      - name: Validate YAML syntax
+        run: |
+          # Install yamllint for YAML syntax validation
+          pip install yamllint
+
+          echo "Validating YAML syntax..."
+          while IFS= read -r file; do
+            echo "Checking $file"
+            yamllint -d "{extends: default, rules: {line-length: {max: 120}, document-start: disable}}" "$file"
+          done < action_files.txt
+
+      - name: Validate with action-validator
+        run: |
+          # Install action-validator
+          npm install -g @action-validator/core @action-validator/cli
+
+          echo "Validating action metadata..."
+          while IFS= read -r file; do
+            echo "Validating $file"
+            action-validator "$file" || true
+          done < action_files.txt
+
+      - name: Check required fields
+        run: |
+          echo "Checking for required fields in action files..."
+          while IFS= read -r file; do
+            echo "Checking $file"
+
+            # Check for required fields
+            if ! grep -q "^name:" "$file"; then
+              echo "ERROR: Missing 'name' field in $file"
+              exit 1
+            fi
+
+            if ! grep -q "^description:" "$file"; then
+              echo "ERROR: Missing 'description' field in $file"
+              exit 1
+            fi
+
+            if ! grep -q "^runs:" "$file"; then
+              echo "ERROR: Missing 'runs' field in $file"
+              exit 1
+            fi
+
+            echo "✓ $file has all required fields"
+          done < action_files.txt
+
+          echo "All actions validated successfully!"
