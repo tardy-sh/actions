@@ -1,0 +1,34 @@
+name: 'Biome Lint'
+description: 'Run Biome linter with GitHub reporter'
+author: 'tardy-actions'
+
+inputs:
+  path:
+    description: 'Path to lint (defaults to .)'
+    required: false
+    default: '.'
+  config_path:
+    description: 'Path to Biome config file'
+    required: false
+    default: ''
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install Biome
+      shell: bash
+      run: |
+        npm install -g @biomejs/biome
+
+    - name: Run Biome lint
+      shell: bash
+      run: |
+        ARGS="ci --reporter=github"
+
+        if [ -n "${{ inputs.config_path }}" ]; then
+          ARGS="$ARGS --config-path=${{ inputs.config_path }}"
+        fi
+
+        ARGS="$ARGS ${{ inputs.path }}"
+
+        biome $ARGS
