@@ -1,4 +1,4 @@
-name: Lint GitHub Actions workflows
+name: Lint GitHub Actions workflows and actions
 on: [push, pull_request]
 
 jobs:
@@ -12,4 +12,19 @@ jobs:
         shell: bash
       - name: Check workflow files
         run: ${{ steps.get_actionlint.outputs.executable }} -color
+        shell: bash
+      - name: Find and check action.yml files
+        run: |
+          # Find all action.yml files
+          ACTION_FILES=$(find . -name "action.yml" -type f)
+
+          if [ -n "$ACTION_FILES" ]; then
+            echo "Found action.yml files:"
+            echo "$ACTION_FILES"
+            echo ""
+            echo "Linting action files..."
+            echo "$ACTION_FILES" | xargs ${{ steps.get_actionlint.outputs.executable }} -color
+          else
+            echo "No action.yml files found"
+          fi
         shell: bash
