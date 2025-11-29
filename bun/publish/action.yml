@@ -64,17 +64,17 @@ runs:
           echo "Publishing to GitHub registry"
           if [ "${{ inputs.dry_run }}" == "true" ]; then
             echo "Running in dry-run mode..."
-            bun publish --dry-run --auth-type legacy
+            bun publish -p --dry-run
           else
-            bun publish --auth-type legacy
+            bun publish -p
           fi
         else
             echo "Running with provided registy url ${{ inputs.registry_url }}"
             if [ "${{ inputs.dry_run }}" == "true" ]; then
               echo "Running in dry-run mode..."
-              bun publish --dry-run --registry "${{ inputs.registry_url }}"
+              bun publish --dry-run -p --registry "${{ inputs.registry_url }}"
             else
-              bun publish --registry "${{ inputs.registry_url }}"
+              bun publish -p --registry "${{ inputs.registry_url }}"
             fi
         fi
             
