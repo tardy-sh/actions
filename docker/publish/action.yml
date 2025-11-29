@@ -13,8 +13,7 @@ inputs:
     default: ${{ github.actor }}
   password:
     description: "Registry password"
-    required: false
-    default: ${{ secrets.GITHUB_TOKEN }}
+    required: true
   image-name:
     description: "Image name (required if pushing tags)"
     required: false
