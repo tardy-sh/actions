@@ -66,7 +66,7 @@ runs:
             echo "Running in dry-run mode..."
             bun publish -p --dry-run
           else
-            bun publish -p
+            bun publish -p --verbose
           fi
         else
             echo "Running with provided registy url ${{ inputs.registry_url }}"
@@ -74,7 +74,7 @@ runs:
               echo "Running in dry-run mode..."
               bun publish --dry-run -p --registry "${{ inputs.registry_url }}"
             else
-              bun publish -p --registry "${{ inputs.registry_url }}"
+              bun publish -p --registry "${{ inputs.registry_url }}" --verbose
             fi
         fi
             
