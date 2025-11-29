@@ -62,7 +62,7 @@ runs:
 
         if [ "${{ inputs.dry_run }}" == "true" ]; then
           echo "Running in dry-run mode..."
-          bun publish --dry-run --registry "${{ inputs.registry_url }}"
+          bun publish --dry-run --registry "${{ inputs.registry_url }}" --auth-type legacy
         else
-          bun publish --registry "${{ inputs.registry_url }}"
+          bun publish --registry "${{ inputs.registry_url }}" --auth-type legacy
         fi
