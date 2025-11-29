@@ -9,7 +9,7 @@ inputs:
   registry_url:
     description: 'Registry URL (defaults to GitHub Packages)'
     required: false
-    default: 'https://npm.pkg.github.com'
+    default: ''
   token:
     description: 'Authentication token for the registry'
     required: true
@@ -60,9 +60,20 @@ runs:
         export BUN_INSTALL="$HOME/.bun"
         export PATH="$BUN_INSTALL/bin:$PATH"
 
-        if [ "${{ inputs.dry_run }}" == "true" ]; then
-          echo "Running in dry-run mode..."
-          bun publish --dry-run --registry "${{ inputs.registry_url }}" --auth-type legacy
+        if [[ -z "${{ inputs.registry_url }}" ]]; then
+          if [ "${{ inputs.dry_run }}" == "true" ]; then
+            echo "Running in dry-run mode..."
+            bun publish --dry-run --auth-type legacy
+          else
+            bun publish --auth-type legacy
+          fi
         else
-          bun publish --registry "${{ inputs.registry_url }}" --auth-type legacy
+            if [ "${{ inputs.dry_run }}" == "true" ]; then
+              echo "Running in dry-run mode..."
+              bun publish --dry-run --registry "${{ inputs.registry_url }}" --auth-type legacy
+            else
+              bun publish --registry "${{ inputs.registry_url }}" --auth-type legacy
+            fi
         fi
+            
+
