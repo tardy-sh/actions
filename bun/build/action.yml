@@ -25,7 +25,7 @@ runs:
       run: |
         export BUN_INSTALL="$HOME/.bun"
         export PATH="$BUN_INSTALL/bin:$PATH"
-        bun install
+        bun install --filter '.'
 
     - name: Build package
       shell: bash
@@ -33,4 +33,4 @@ runs:
       run: |
         export BUN_INSTALL="$HOME/.bun"
         export PATH="$BUN_INSTALL/bin:$PATH"
-        bun run build
+        bun pm pack
