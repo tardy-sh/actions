@@ -1,0 +1,61 @@
+name: "Docker Publish"
+description: "Authenticates to a registry and optionally pushes tags"
+author: "tardy-actions"
+
+inputs:
+  registry:
+    description: "Registry to login to"
+    required: false
+    default: "ghcr.io"
+  username:
+    description: "Registry username"
+    required: false
+    default: ${{ github.actor }}
+  password:
+    description: "Registry password"
+    required: false
+    default: ${{ secrets.GITHUB_TOKEN }}
+  image-name:
+    description: "Image name (required if pushing tags)"
+    required: false
+  tags:
+    description: "Comma-separated list of tags to push (optional)"
+    required: false
+
+runs:
+  using: "composite"
+  steps:
+    - name: Login to Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ inputs.registry }}
+        username: ${{ inputs.username }}
+        password: ${{ inputs.password }}
+
+    - name: Push Tags
+      if: ${{ inputs.tags != '' && inputs.image-name != '' }}
+      shell: bash
+      run: |
+        TAGS_CSV="${{ inputs.tags }}"
+        IMAGE_NAME="${{ inputs.image-name }}"
+
+        IFS=',' read -ra TAG_LIST <<< "$TAGS_CSV"
+        for tag in "${TAG_LIST[@]}"; do
+          # Check if tag already includes image name, if not prepend it?
+          # The build action outputs full image:tag. Let's assume input is full image:tag or just tag?
+          # User's build action outputs full "image:tag".
+          # But if user passes just "v1", we might need to handle it. 
+          # Let's assume the input `tags` matches what `build` outputs (full references).
+          
+          # However, if the user manually provides tags here, they might just say "latest".
+          # Let's check if the tag contains the image name.
+          
+          if [[ "$tag" != *"$IMAGE_NAME"* ]]; then
+             FULL_TAG="$IMAGE_NAME:$tag"
+          else
+             FULL_TAG="$tag"
+          fi
+          
+          echo "Pushing $FULL_TAG"
+          docker push "$FULL_TAG"
+        done

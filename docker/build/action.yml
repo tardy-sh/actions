@@ -1,0 +1,114 @@
+name: "Docker Build"
+description: "Builds a Docker image with automatic tagging based on git context"
+author: "tardy-actions"
+
+inputs:
+  context:
+    description: "Build context"
+    required: false
+    default: "."
+  file:
+    description: "Path to Dockerfile"
+    required: false
+    default: "Dockerfile"
+  image-name:
+    description: "Base image name (e.g. ghcr.io/owner/repo)"
+    required: true
+  push:
+    description: "Push to registry after build"
+    required: false
+    default: "false"
+  release_tag:
+    description: "Override tag for release events"
+    required: false
+  commit_tag:
+    description: "Override tag for commit events"
+    required: false
+  merge_tag:
+    description: "Override tag for merge events"
+    required: false
+
+outputs:
+  tags:
+    description: "Comma-separated list of tags applied"
+    value: ${{ steps.calc-tags.outputs.tags }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Calculate Tags
+      id: calc-tags
+      shell: bash
+      run: |
+        IMAGE_NAME="${{ inputs.image-name }}"
+        TAGS=""
+
+        # Helper to sanitize branch names (replace / with -)
+        sanitize() {
+          echo "$1" | sed 's/[^a-zA-Z0-9._-]/-/g'
+        }
+
+        # 1. Determine base tags from Git context
+        if [[ "${{ github.event_name }}" == "push" ]]; then
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            # Tag push: use tag name and latest
+            TAG_NAME=${GITHUB_REF#refs/tags/}
+            TAGS="${IMAGE_NAME}:${TAG_NAME},${IMAGE_NAME}:latest"
+          elif [[ "${{ github.ref }}" == refs/heads/* ]]; then
+            # Branch push: use branch name
+            BRANCH_NAME=${GITHUB_REF#refs/heads/}
+            SAFE_BRANCH=$(sanitize "$BRANCH_NAME")
+            TAGS="${IMAGE_NAME}:${SAFE_BRANCH}"
+          fi
+        elif [[ "${{ github.event_name }}" == "pull_request" ]]; then
+           # PR: use pr-number
+           TAGS="${IMAGE_NAME}:pr-${{ github.event.number }}"
+        fi
+
+        # 2. Apply Overrides
+        if [[ -n "${{ inputs.release_tag }}" && "${{ github.event_name }}" == "release" ]]; then
+           TAGS="${IMAGE_NAME}:${{ inputs.release_tag }}"
+        fi
+
+        # If explicit tags provided via other inputs (commit_tag, merge_tag), append or replace?
+        # User asked for "image tags should be changeable using inputs for variables release_tag and commit_tag"
+        # I'll treat them as overrides if present.
+
+        if [[ -n "${{ inputs.commit_tag }}" ]]; then
+           TAGS="${TAGS},${IMAGE_NAME}:${{ inputs.commit_tag }}"
+        fi
+
+        # Fallback if no tags found
+        if [[ -z "$TAGS" ]]; then
+          echo "Warning: No tags calculated. Defaulting to latest."
+          TAGS="${IMAGE_NAME}:latest"
+        fi
+
+        echo "Calculated tags: $TAGS"
+        echo "tags=$TAGS" >> $GITHUB_OUTPUT
+
+    - name: Build Docker Image
+      shell: bash
+      run: |
+        CONTEXT="${{ inputs.context }}"
+        FILE="${{ inputs.file }}"
+        TAGS_CSV="${{ steps.calc-tags.outputs.tags }}"
+        PUSH="${{ inputs.push }}"
+
+        # Convert CSV tags to -t args
+        TAG_ARGS=""
+        IFS=',' read -ra TAG_LIST <<< "$TAGS_CSV"
+        for tag in "${TAG_LIST[@]}"; do
+          TAG_ARGS="$TAG_ARGS -t $tag"
+        done
+
+        echo "Building $CONTEXT with file $FILE and tags $TAG_ARGS"
+
+        docker build $CONTEXT -f $FILE $TAG_ARGS
+
+        if [[ "$PUSH" == "true" ]]; then
+          echo "Pushing tags..."
+          for tag in "${TAG_LIST[@]}"; do
+            docker push "$tag"
+          done
+        fi
