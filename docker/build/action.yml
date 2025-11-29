@@ -27,6 +27,9 @@ inputs:
   merge_tag:
     description: "Override tag for merge events"
     required: false
+  build-args:
+    description: "List of build arguments (multiline string, KEY=VALUE)"
+    required: false
 
 outputs:
   tags:
@@ -94,6 +97,7 @@ runs:
         FILE="${{ inputs.file }}"
         TAGS_CSV="${{ steps.calc-tags.outputs.tags }}"
         PUSH="${{ inputs.push }}"
+        BUILD_ARGS_INPUT="${{ inputs.build-args }}"
 
         # Convert CSV tags to -t args
         TAG_ARGS=""
@@ -102,9 +106,46 @@ runs:
           TAG_ARGS="$TAG_ARGS -t $tag"
         done
 
-        echo "Building $CONTEXT with file $FILE and tags $TAG_ARGS"
+        # Process build args
+        BUILD_ARG_FLAGS=""
+        if [[ -n "$BUILD_ARGS_INPUT" ]]; then
+          while IFS= read -r line; do
+            if [[ -n "$line" ]]; then
+              # Quote the argument to handle spaces, but be careful with shell expansion
+              # We rely on the fact that we are constructing the command string.
+              # Actually, passing secrets via command line args is visible in process list.
+              # But for `docker build`, --build-arg is the standard way.
+              # We will just append it.
+              BUILD_ARG_FLAGS="$BUILD_ARG_FLAGS --build-arg $line"
+            fi
+          done <<< "$BUILD_ARGS_INPUT"
+        fi
 
-        docker build $CONTEXT -f $FILE $TAG_ARGS
+        echo "Building $CONTEXT with file $FILE and tags $TAG_ARGS"
+        # Note: Not echoing BUILD_ARG_FLAGS to avoid leaking secrets in logs if they are passed as values
+
+        # We use eval or just run it? 
+        # If $line contains spaces (KEY="VAL UE"), simple appending might break.
+        # Safer to use an array for the whole command if possible, but in bash script in yaml...
+        # Let's try to be robust.
+
+        CMD=("docker" "build" "$CONTEXT" "-f" "$FILE")
+
+        # Add tags
+        for tag in "${TAG_LIST[@]}"; do
+          CMD+=("-t" "$tag")
+        done
+
+        # Add build args
+        if [[ -n "$BUILD_ARGS_INPUT" ]]; then
+          while IFS= read -r line; do
+            if [[ -n "$line" ]]; then
+               CMD+=("--build-arg" "$line")
+            fi
+          done <<< "$BUILD_ARGS_INPUT"
+        fi
+
+        "${CMD[@]}"
 
         if [[ "$PUSH" == "true" ]]; then
           echo "Pushing tags..."
