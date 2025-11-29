@@ -37,17 +37,6 @@ jobs:
             yamllint -d "{extends: default, rules: {line-length: {max: 120}, document-start: disable}}" "$file"
           done < action_files.txt
 
-      - name: Validate with action-validator
-        run: |
-          # Install action-validator
-          npm install -g @action-validator/core @action-validator/cli
-
-          echo "Validating action metadata..."
-          while IFS= read -r file; do
-            echo "Validating $file"
-            action-validator "$file" || true
-          done < action_files.txt
-
       - name: Check required fields
         run: |
           echo "Checking for required fields in action files..."
