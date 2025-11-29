@@ -1,0 +1,68 @@
+name: 'Bun Library Publish'
+description: 'Publish a bun/npm package to a registry using bun package manager'
+author: 'tardy-actions'
+
+inputs:
+  path:
+    description: 'Path to the built package to publish'
+    required: true
+  registry_url:
+    description: 'Registry URL (defaults to GitHub Packages)'
+    required: false
+    default: 'https://npm.pkg.github.com'
+  token:
+    description: 'Authentication token for the registry'
+    required: true
+  dry_run:
+    description: 'Run publish in dry-run mode'
+    required: false
+    default: 'false'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Bun
+      shell: bash
+      run: |
+        if ! command -v bun &> /dev/null; then
+          curl -fsSL https://bun.sh/install | bash
+          export BUN_INSTALL="$HOME/.bun"
+          export PATH="$BUN_INSTALL/bin:$PATH"
+        fi
+
+    - name: Configure registry authentication
+      shell: bash
+      working-directory: ${{ inputs.path }}
+      run: |
+        export BUN_INSTALL="$HOME/.bun"
+        export PATH="$BUN_INSTALL/bin:$PATH"
+
+        # Extract registry host from URL
+        REGISTRY_HOST=$(echo "${{ inputs.registry_url }}" | sed -e 's|^https\?://||' -e 's|/.*||')
+
+        # Configure npmrc for authentication
+        echo "//${REGISTRY_HOST}/:_authToken=${{ inputs.token }}" >> ~/.npmrc
+
+        # Set registry in package.json if using GitHub Packages
+        if [[ "${{ inputs.registry_url }}" == *"pkg.github.com"* ]]; then
+          # GitHub Packages requires publishConfig in package.json
+          if ! grep -q "publishConfig" package.json; then
+            echo "Warning: publishConfig not found in package.json"
+            echo "For GitHub Packages, add this to your package.json:"
+            echo '  "publishConfig": { "registry": "${{ inputs.registry_url }}" }'
+          fi
+        fi
+
+    - name: Publish package
+      shell: bash
+      working-directory: ${{ inputs.path }}
+      run: |
+        export BUN_INSTALL="$HOME/.bun"
+        export PATH="$BUN_INSTALL/bin:$PATH"
+
+        if [ "${{ inputs.dry_run }}" == "true" ]; then
+          echo "Running in dry-run mode..."
+          bun publish --dry-run --registry "${{ inputs.registry_url }}"
+        else
+          bun publish --registry "${{ inputs.registry_url }}"
+        fi
